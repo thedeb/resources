@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Seattle Crime Dashboard</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+    <link rel="stylesheet" href="css/dashboard4.css" />
+</head>
+
+<body>
+
+    <div id="header">Crime Dashboard</div>
+
+    <div id="mapTitle">Police Beat Map</div>
+
+    <div id="mapContainer">
+    </div>
+
+    <div id="chartContainer">
+    </div>
+
+    <div id="tableContainer">
+    </div>
+
+<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+<script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+
+
+<script type="text/javascript">
+    //Use jQuery to call the API and get results
+    $(document).ready(function() {
+
+        var map, beat_layer; //Global variable 'gods' - they can be seen by all and used throughout the app
+
+        //Call buildmap function
+        buildMap();
+
+        loadData();
+
+        //Create the map.  Add basemap and police beats.
+        function buildMap(){
+
+            //initialize the map
+            map = L.map('mapContainer').setView([47.65, -122.4], 10); //Center on Seattle
+
+            //Add a basemap
+            L.tileLayer('http://{s}.tiles.mapbox.com/v3/spatialdev.map-c9z2cyef/{z}/{x}/{y}.png').addTo(map);
+
+            //Create map style for police beats
+            var beatStyle = {
+                fill: true,
+                fillColor: 'blue',
+                weight: 2,
+                opacity:0.2,
+                color: '#ffffff',
+                fillOpacity: 0.2
+            };
+
+            //Use jQuery to ask for the police beat data from our 'data' folder
+            $.getJSON("data/Seattle-Police-Beats.geojson", function(beats){
+
+                //Add the police beats to map, using the style set above.  Save to beat_layer variable.
+                beat_layer = L.geoJson(beats, { style: beatStyle }).addTo(map);
+
+
+            });
+        }
+
+
+        //Load the crime data from the API
+        function loadData(){
+            //This is the URL (address) to the API endpoint you're interested in
+            var URL = "http://data.seattle.gov/resource/3k2p-39jp.json";
+
+            //Load data and group by district - when done fetching the data, go to processData function
+            $.getJSON(URL, processData);
+        }
+
+        //Format it for the table, map and charts.
+        function processData(results) {
+
+            //Do the Table Stuff
+            handleDataForTable(results);
+
+            //Do charts and Map later
+        }
+
+        function handleDataForTable(results){
+
+            //Clear the table every time this is called
+            $("#tableContainer").empty();
+
+            //In the function above (handleDataForMap), we assigned each boundary a crime_count.
+            //Let's loop thru again and write out each beat to the table
+
+            $.each(results, function (key, item) {
+
+                //only show if the value of crime_count is something (skip nulls or undefined values)
+                if(item.zone_beat){
+                    $("#tableContainer").append('<div>' + item.zone_beat + '</div>');
+                }
+
+            })
+        }
+
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+/* Dashboard Styles */
+
+
+#leftContainer{
+    float: left;
+    width: 45%
+}
+
+#rightContainer{
+    float: right;
+    width: 45%;
+}
+
+#mapContainer {
+    height: 380px;
+}
