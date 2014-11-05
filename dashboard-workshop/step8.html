@@ -6,7 +6,7 @@
     <title>Seattle Crime Dashboard</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap.min.css" />
     <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
-    <link rel="stylesheet" href="css/dashboard5.css" />
+    <link rel="stylesheet" href="css/dashboard8.css" />
 </head>
 
 <body>
@@ -17,11 +17,26 @@
 <!-- This is new.  I typically make sites have a min-width of 960px, and want the content to be centered.  The class width-restriction does this. -->
 <div id="main" class="width-restriction">
 
+    <div id="intro">
+        <h2></h2>
+        <p>
+            This interactive dashboard summarizes reported crimes by police beat as reported by the Seattle Police Department.
+            Data is pulled from Seattle's <a href="http://data.seattle.gov" target="_blank">Open Data Portal</a>, and is for illustrative purposes only.
+
+        </p>
+    </div>
+
 <!-- leftContainer is a box that will group things we want to be on the left together. -->
     <div id="leftContainer">
-        <div id="mapTitle">Police Beat Map</div>
+        <div id="mapTitle" class="section-title">Police Beat Map</div>
         <div id="mapContainer">
 
+        </div>
+
+        <div id="chartContainer" class="clearfix">
+            <div id="chart">
+
+            </div>
         </div>
     </div>
 
@@ -29,6 +44,7 @@
 
     <div id="rightContainer">
         <div id="tableContainer">
+            <div class="section-title">List of Police Beats & Crimes</div>
 
             <!-- Placeholder for the table rows -->
             <table id="beatTable" class="table table-hover">
@@ -47,14 +63,15 @@
     </div>
 
 
-    <div id="chartContainer">
-    </div>
+
 
 </div>
 
 <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
 <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
-
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+<script src="http://code.highcharts.com/highcharts.js"></script>
+<script src="http://code.highcharts.com/modules/data.js"></script>
 
 <script type="text/javascript">
     //Use jQuery to call the API and get results
@@ -63,12 +80,17 @@
         var map, beat_layer; //Global variable 'gods' - they can be seen by all and used throughout the app
 
         //Call buildmap function
-        buildMap();
+        buildMap(function(){
+            //After buildmap is done, it executes this callback
 
-        loadData();
+            //Now load the API data.
+            loadData();
+
+        });
+
 
         //Create the map.  Add basemap and police beats.
-        function buildMap(){
+        function buildMap(callback){
 
             //initialize the map
             map = L.map('mapContainer').setView([47.65, -122.4], 10); //Center on Seattle
@@ -92,8 +114,11 @@
                 //Add the police beats to map, using the style set above.  Save to beat_layer variable.
                 beat_layer = L.geoJson(beats, { style: beatStyle }).addTo(map);
 
+                //When map data is finished loading, fire off the function that was passed in (callback).
+                if(callback) callback();
 
             });
+
         }
 
 
@@ -112,12 +137,17 @@
             //Convert the raw crimes into # crimes by beat
             var beats = groupCrimesByPoliceBeat(results);
 
+            handleDataForMap(beats);
+
             //Do the Table Stuff
-            handleDataForTable(beats);
+            handleDataForTable();
+
+
+            createChart();
 
         }
 
-        function handleDataForTable(beats){
+        function handleDataForTable(){
 
             //Clear the table every time this is called
             $("#tabularBody").empty();
@@ -125,16 +155,54 @@
             //In the function above (handleDataForMap), we assigned each boundary a crime_count.
             //Let's loop thru again and write out each beat to the table
 
-            $.each(beats, function (name, value) {
+            $.each(beat_layer._layers, function (key, beat) {
+
+                var beat_id = beat.feature.properties.BEAT;
+                var district_id = beat.feature.properties.PRECINCT;
+                var crime_count = beat.feature.properties.crime_count;
+
+                //Create a table row element
+                //The HTML Looks Like This
+                //<tr>
+                //  <td>
+                //    Zone B3
+                //  </td>
+                //  <td>
+                //    23
+                //  </td>
+                //</tr>
+
 
                 //only show if the value of crime_count is something (skip nulls or undefined values)
-
-                $("#tabularBody").append('<tr><td>' + name + '</td><td>' + value + '</td></tr>');
+                if(crime_count){
+                    $("#tabularBody").append('<tr><td>' + beat_id + '</td><td>' + crime_count + '</td></tr>');
+                }
 
             })
         }
 
+        function handleDataForMap(beats){
 
+
+            //Now take the beats object and merge it with the beats map (.geojson) file to color code the map
+            $.each(beat_layer._layers, function (key, beat) { //Remember, beat_layer is the GOD variable that holds a reference to the map layer
+
+                //Find the beat number from the map feature.
+                //Grab the cooresponding crime number from the beats object.
+                var beat_id = beat.feature.properties.BEAT;
+
+
+                //crimeCount is the number from the beats object.
+                var crimeCount = beats[beat_id];
+
+                //Bake this count into the map feature.
+                //We're adding a new thing called 'crime_count', and setting it equal to the count for this beat
+                beat.feature.properties.crime_count = crimeCount;
+
+                //Update map style
+                beat_layer.setStyle(getColorByNumberOfCrimes);
+            })
+        }
 
 
         //Take the crime object we got back from the API call, and see what's inside.
@@ -167,7 +235,64 @@
             return crimesByDistrict;
         }
 
+
+
+        //Used to determine RED/GREEN/YELLOW color based on the number of crimes.
+        function getColorByNumberOfCrimes(feature){
+
+            var crimeCount = feature.properties.crime_count;
+            var beat_color;
+
+            //using the crimeCount number, decide whether to color the beat on the map RED, YELLOW or GREEN.
+            if(crimeCount >= 0 && crimeCount < 15){
+
+                beat_color = "#00ff00"; //Low Crime, Green Hex Code
+
+            }else if(crimeCount >= 15 && crimeCount < 30) {
+
+                beat_color = "#ffff00"; //Medium Crime, Yellow Hex Code
+
+            }else if(crimeCount >= 30) {
+
+                beat_color = "#ff0000"; //High Crime, Red Hex Code
+
+            }
+            else{
+                //In case something weird happens with the numbers and one of the above cases isn't triggered
+                beat_color = "#000000"; //Black
+            }
+
+            //Return whatever color was chosen above
+            return { fillColor: beat_color };
+
+        }
+
     });
+
+
+
+    function createChart(){
+        //Highcharts has a cool option I saw that lets you point it at an HTML table.
+        //Good thing.  We just got done filling our table with data!
+
+        $('#chart').highcharts({
+            data: {
+                table: $('#beatTable')[0] //Point at the HTML Table we built.  It's called beatTable.  jQuery fetches 1 or more matching items, and we want only the 1st item (index 0)
+            },
+            chart: {
+                type: 'bar'
+            },
+            title: {
+                text: 'Number of Crimes by Police Beat'
+            },
+            yAxis: {
+                allowDecimals: false,
+                title: {
+                    text: 'Beats'
+                }
+            }
+        });
+    }
 </script>
 </body>
 </html>

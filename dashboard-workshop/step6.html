@@ -6,7 +6,7 @@
     <title>Seattle Crime Dashboard</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.0/css/bootstrap.min.css" />
     <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
-    <link rel="stylesheet" href="css/dashboard5.css" />
+    <link rel="stylesheet" href="css/dashboard6.css" />
 </head>
 
 <body>
@@ -115,6 +115,8 @@
             //Do the Table Stuff
             handleDataForTable(beats);
 
+            handleDataForMap(beats);
+
         }
 
         function handleDataForTable(beats){
@@ -134,7 +136,28 @@
             })
         }
 
+        function handleDataForMap(beats){
 
+
+            //Now take the beats object and merge it with the beats map (.geojson) file to color code the map
+            $.each(beat_layer._layers, function (key, beat) { //Remember, beat_layer is the GOD variable that holds a reference to the map layer
+
+                //Find the beat number from the map feature.
+                //Grab the cooresponding crime number from the beats object.
+                var beat_id = beat.feature.properties.BEAT;
+
+
+                //crimeCount is the number from the beats object.
+                var crimeCount = beats[beat_id];
+
+                //Bake this count into the map feature.
+                //We're adding a new thing called 'crime_count', and setting it equal to the count for this beat
+                beat.feature.properties.crime_count = crimeCount;
+
+                //Update map style
+                beat_layer.setStyle(getColorByNumberOfCrimes);
+            })
+        }
 
 
         //Take the crime object we got back from the API call, and see what's inside.
@@ -165,6 +188,38 @@
             });
 
             return crimesByDistrict;
+        }
+
+
+
+        //Used to determine RED/GREEN/YELLOW color based on the number of crimes.
+        function getColorByNumberOfCrimes(feature){
+
+            var crimeCount = feature.properties.crime_count;
+            var beat_color;
+
+            //using the crimeCount number, decide whether to color the beat on the map RED, YELLOW or GREEN.
+            if(crimeCount >= 0 && crimeCount < 15){
+
+                beat_color = "#00ff00"; //Low Crime, Green Hex Code
+
+            }else if(crimeCount >= 15 && crimeCount < 30) {
+
+                beat_color = "#ffff00"; //Medium Crime, Yellow Hex Code
+
+            }else if(crimeCount >= 30) {
+
+                beat_color = "#ff0000"; //High Crime, Red Hex Code
+
+            }
+            else{
+                //In case something weird happens with the numbers and one of the above cases isn't triggered
+                beat_color = "#000000"; //Black
+            }
+
+            //Return whatever color was chosen above
+            return { fillColor: beat_color };
+
         }
 
     });
