@@ -111,7 +111,13 @@ $(document).ready(function() {
 
     function loadData(){
         //This is the URL (address) to the API endpoint you're interested in
-        var URL = "http://data.seattle.gov/resource/3k2p-39jp.json";
+        var URL = "http://data.seattle.gov/resource/3k2p-39jp.json"; //By Default, this API limits the results to 1000.
+
+        //Dates can be filtered
+        //http://data.seattle.gov/resource/3k2p-39jp.json?$where=event_clearance_date > '2014-10-04'
+
+        //You can also filter by crime type:
+        //http://data.seattle.gov/resource/3k2p-39jp.json?initial_type_group=ASSAULTS
 
         //Load data and group by district - when done fetching the data, go to groupCrimesByPoiceBeat function
         $.getJSON(URL, processData);
@@ -307,8 +313,6 @@ $(document).ready(function() {
 
         return crimesByDistrict;
     }
-
-
 
 });
 </script>
